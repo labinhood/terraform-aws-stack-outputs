@@ -27,7 +27,7 @@
  */
 
 terraform {
-  required_version = "~> 0.12"
+  required_version = ">= 0.12, ~> 1.3"
 }
 
 locals {
