@@ -31,9 +31,17 @@ terraform {
 }
 
 locals {
-  // This is a little gross, but allows us to pass in snake_case or kebab-case keys
-  // and convert them to CamelCase, since Cloudformation does not allow hyphens or underscores.
-  outputs = { for k, v in var.outputs : replace(title(replace(k, "/[\\-_]/", " ")), " ", "") => { Value = (v) } }
+  // We do not do any manipulation of keys, so values passed should be valid for CF
+  prefix = (var.export_names_prefix != "") ? var.export_names_prefix : var.cfn_stack_name
+  outputs = {
+    for k, v in var.outputs :
+    k => {
+      Value  = (v),
+      Export = {
+        Name = "${local.prefix}-${k}"
+      }
+    }
+  }
 
   // yamlencode wraps everything in quotes, which Cloudformation does not like, so we remove the quotes.
   cfn_template = replace(yamlencode({
@@ -42,7 +50,7 @@ locals {
     }
     Resources = {
       NullResource = {
-        Type = "Custom::NullResource"
+        Type      = "Custom::NullResource"
         Condition = "HasNot"
       }
     }
@@ -53,8 +61,8 @@ locals {
 /**
  * Create the Cloudformation Stack that will output our values.
  */
-resource aws_cloudformation_stack outputs {
-  name = var.name
+resource "aws_cloudformation_stack" "outputs" {
+  name = var.cfn_stack_name
 
   template_body = local.cfn_template
 }
